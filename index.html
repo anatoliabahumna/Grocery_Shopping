@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grocery Price Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-6 max-w-md">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">🛒 Grocery Tracker</h1>
+            <p class="text-gray-600">Track your shopping list and prices</p>
+        </div>
+
+        <!-- Input Form -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <form id="item-form" class="space-y-4">
+                <div>
+                    <label for="item-name" class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                    <input 
+                        type="text" 
+                        id="item-name" 
+                        name="itemName"
+                        placeholder="e.g. Milk, Bread, Apples"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                        required
+                    >
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                        <input 
+                            type="number" 
+                            id="quantity" 
+                            name="quantity"
+                            value="1"
+                            min="0.01"
+                            step="0.01"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                            required
+                        >
+                    </div>
+                    
+                    <div>
+                        <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Price (PLN)</label>
+                        <input 
+                            type="number" 
+                            id="price" 
+                            name="price"
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                            required
+                        >
+                    </div>
+                </div>
+                
+                <button 
+                    type="submit"
+                    class="w-full bg-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 text-base"
+                >
+                    Add Item
+                </button>
+            </form>
+        </div>
+
+        <!-- Shopping List -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+            <div class="p-4 bg-gray-50 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-800">Shopping List</h2>
+                    <button 
+                        id="clear-list-btn"
+                        class="text-red-600 hover:text-red-700 font-medium text-sm transition-colors duration-200"
+                    >
+                        Clear List
+                    </button>
+                </div>
+            </div>
+            
+            <div id="shopping-list" class="divide-y divide-gray-200">
+                <!-- Items will be dynamically added here -->
+            </div>
+            
+            <div id="empty-state" class="p-8 text-center text-gray-500">
+                <div class="text-4xl mb-2">📝</div>
+                <p>Your shopping list is empty</p>
+                <p class="text-sm">Add items above to get started</p>
+            </div>
+        </div>
+
+        <!-- Grand Total -->
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div class="flex justify-between items-center">
+                <span class="text-lg font-semibold text-green-800">Grand Total:</span>
+                <span id="grand-total" class="text-xl font-bold text-green-800">0.00 PLN</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-sm w-full">
+                <div class="p-6">
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">⚠️</div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Clear Shopping List</h3>
+                        <p class="text-gray-600 mb-6">Are you sure you want to delete all items? This action cannot be undone.</p>
+                        
+                        <div class="flex space-x-3">
+                            <button 
+                                id="modal-cancel"
+                                class="flex-1 bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                id="modal-confirm"
+                                class="flex-1 bg-red-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200"
+                            >
+                                Delete All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Shopping list data
+        let shoppingList = [];
+        
+        // DOM elements
+        const itemForm = document.getElementById('item-form');
+        const shoppingListContainer = document.getElementById('shopping-list');
+        const emptyState = document.getElementById('empty-state');
+        const grandTotalElement = document.getElementById('grand-total');
+        const clearListBtn = document.getElementById('clear-list-btn');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalConfirm = document.getElementById('modal-confirm');
+
+        // Generate unique ID for items
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return (Math.round(amount * 100) / 100).toFixed(2) + ' PLN';
+        }
+
+        // Save to localStorage
+        function saveToLocalStorage() {
+            localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
+        }
+
+        // Load from localStorage
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('shoppingList');
+            if (saved) {
+                shoppingList = JSON.parse(saved);
+                renderShoppingList();
+            }
+        }
+
+        // Calculate subtotal for an item
+        function calculateSubtotal(quantity, price) {
+            return quantity * price;
+        }
+
+        // Calculate grand total
+        function calculateGrandTotal() {
+            return shoppingList.reduce((total, item) => {
+                return total + calculateSubtotal(item.quantity, item.price);
+            }, 0);
+        }
+
+        // Update grand total display
+        function updateGrandTotal() {
+            const total = calculateGrandTotal();
+            grandTotalElement.textContent = formatCurrency(total);
+        }
+
+        // Create item HTML
+        function createItemHTML(item) {
+            const subtotal = calculateSubtotal(item.quantity, item.price);
+            
+            return `
+                <div class="p-4" data-id="${item.id}">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="font-medium text-gray-900 flex-1 mr-2">${item.name}</h3>
+                        <button 
+                            onclick="removeItem('${item.id}')"
+                            class="text-red-500 hover:text-red-700 transition-colors duration-200 p-1"
+                            title="Remove item"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-3 items-center">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Quantity</label>
+                            <input 
+                                type="number" 
+                                value="${item.quantity}"
+                                min="0.01"
+                                step="0.01"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                onchange="updateItemQuantity('${item.id}', this.value)"
+                            >
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Price</label>
+                            <input 
+                                type="number" 
+                                value="${item.price}"
+                                min="0"
+                                step="0.01"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                onchange="updateItemPrice('${item.id}', this.value)"
+                            >
+                        </div>
+                        
+                        <div class="text-right">
+                            <label class="block text-xs text-gray-500 mb-1">Subtotal</label>
+                            <span class="font-semibold text-green-600">${formatCurrency(subtotal)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Render shopping list
+        function renderShoppingList() {
+            if (shoppingList.length === 0) {
+                shoppingListContainer.innerHTML = '';
+                emptyState.style.display = 'block';
+                clearListBtn.style.display = 'none';
+            } else {
+                emptyState.style.display = 'none';
+                clearListBtn.style.display = 'block';
+                shoppingListContainer.innerHTML = shoppingList.map(item => createItemHTML(item)).join('');
+            }
+            updateGrandTotal();
+        }
+
+        // Add new item
+        function addItem(name, quantity, price) {
+            const newItem = {
+                id: generateId(),
+                name: name.trim(),
+                quantity: parseFloat(quantity),
+                price: parseFloat(price)
+            };
+            
+            shoppingList.push(newItem);
+            saveToLocalStorage();
+            renderShoppingList();
+        }
+
+        // Remove item
+        function removeItem(id) {
+            shoppingList = shoppingList.filter(item => item.id !== id);
+            saveToLocalStorage();
+            renderShoppingList();
+        }
+
+        // Update item quantity
+        function updateItemQuantity(id, quantity) {
+            const item = shoppingList.find(item => item.id === id);
+            if (item && quantity > 0) {
+                item.quantity = parseFloat(quantity);
+                saveToLocalStorage();
+                renderShoppingList();
+            }
+        }
+
+        // Update item price
+        function updateItemPrice(id, price) {
+            const item = shoppingList.find(item => item.id === id);
+            if (item && price >= 0) {
+                item.price = parseFloat(price);
+                saveToLocalStorage();
+                renderShoppingList();
+            }
+        }
+
+        // Clear all items
+        function clearAllItems() {
+            shoppingList = [];
+            saveToLocalStorage();
+            renderShoppingList();
+        }
+
+        // Show modal
+        function showModal() {
+            modalOverlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Hide modal
+        function hideModal() {
+            modalOverlay.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Event listeners
+        itemForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const name = formData.get('itemName');
+            const quantity = formData.get('quantity');
+            const price = formData.get('price');
+            
+            if (name && quantity && price) {
+                addItem(name, quantity, price);
+                e.target.reset();
+                document.getElementById('quantity').value = '1'; // Reset quantity to default
+                document.getElementById('item-name').focus(); // Focus back to name input
+            }
+        });
+
+        clearListBtn.addEventListener('click', function() {
+            if (shoppingList.length > 0) {
+                showModal();
+            }
+        });
+
+        modalCancel.addEventListener('click', hideModal);
+        
+        modalConfirm.addEventListener('click', function() {
+            clearAllItems();
+            hideModal();
+        });
+
+        // Close modal when clicking outside
+        modalOverlay.addEventListener('click', function(e) {
+            if (e.target === modalOverlay) {
+                hideModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !modalOverlay.classList.contains('hidden')) {
+                hideModal();
+            }
+        });
+
+        // Make functions global for onclick handlers
+        window.removeItem = removeItem;
+        window.updateItemQuantity = updateItemQuantity;
+        window.updateItemPrice = updateItemPrice;
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromLocalStorage();
+            document.getElementById('item-name').focus();
+        });
+    </script>
+</body>
+</html> 
