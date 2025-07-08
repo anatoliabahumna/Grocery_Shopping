@@ -2,13 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Grocery Price Tracker</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="Track your grocery shopping list and prices on the go">
+    
+    <!-- Apple PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Grocery Tracker">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' fill='%232563eb'/><text x='90' y='110' font-size='80' text-anchor='middle' fill='white'>🛒</text></svg>">
+    <link rel="apple-touch-icon" sizes="152x152" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 152 152'><rect width='152' height='152' fill='%232563eb'/><text x='76' y='92' font-size='68' text-anchor='middle' fill='white'>🛒</text></svg>">
+    <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' fill='%232563eb'/><text x='90' y='110' font-size='80' text-anchor='middle' fill='white'>🛒</text></svg>">
+    <link rel="apple-touch-icon" sizes="167x167" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 167 167'><rect width='167' height='167' fill='%232563eb'/><text x='83.5' y='102' font-size='74' text-anchor='middle' fill='white'>🛒</text></svg>">
+    
+    <!-- Standard favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%232563eb'/><text x='16' y='22' font-size='18' text-anchor='middle' fill='white'>🛒</text></svg>">
+    
+    <!-- Splash screen for iOS -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
+        }
+        
+        /* PWA specific styles */
+        @media all and (display-mode: standalone) {
+            body {
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+        }
+        
+        /* Prevent zoom on inputs for iOS */
+        input[type="text"], 
+        input[type="number"] {
+            font-size: 16px;
         }
     </style>
 </head>
@@ -100,6 +139,27 @@
         </div>
 
         <!-- Grand Total -->
+        <!-- Install Prompt -->
+        <div id="install-prompt" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 hidden">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="text-2xl mr-3">📱</div>
+                    <div>
+                        <p class="font-medium text-blue-900">Install App</p>
+                        <p class="text-sm text-blue-700">Add to home screen for quick access</p>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="install-dismiss" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        Later
+                    </button>
+                    <button id="install-button" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+                        Install
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
             <div class="flex justify-between items-center">
                 <span class="text-lg font-semibold text-green-800">Grand Total:</span>
@@ -369,6 +429,86 @@
         window.removeItem = removeItem;
         window.updateItemQuantity = updateItemQuantity;
         window.updateItemPrice = updateItemPrice;
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        const installPrompt = document.getElementById('install-prompt');
+        const installButton = document.getElementById('install-button');
+        const installDismiss = document.getElementById('install-dismiss');
+
+        // Listen for the beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', function(e) {
+            console.log('beforeinstallprompt fired');
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            // Show the install prompt
+            installPrompt.classList.remove('hidden');
+        });
+
+        // Handle install button click
+        installButton.addEventListener('click', function() {
+            console.log('Install button clicked');
+            // Hide the install prompt
+            installPrompt.classList.add('hidden');
+            // Show the install prompt
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                deferredPrompt.userChoice.then(function(choiceResult) {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                    } else {
+                        console.log('User dismissed the install prompt');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                // For iOS Safari, show instruction
+                if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
+                    alert('To install this app on your iPhone:\n\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" to confirm');
+                }
+            }
+        });
+
+        // Handle dismiss button click
+        installDismiss.addEventListener('click', function() {
+            installPrompt.classList.add('hidden');
+            // Remember dismissal for this session
+            sessionStorage.setItem('installPromptDismissed', 'true');
+        });
+
+        // Check if app is already installed
+        window.addEventListener('appinstalled', function(evt) {
+            console.log('App was installed');
+            installPrompt.classList.add('hidden');
+        });
+
+        // For iOS Safari, show install prompt after some usage
+        if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
+            // Check if running in standalone mode (already installed)
+            if (!window.navigator.standalone && !sessionStorage.getItem('installPromptDismissed')) {
+                // Show install prompt after 30 seconds of usage
+                setTimeout(function() {
+                    if (!installPrompt.classList.contains('hidden')) return;
+                    installPrompt.classList.remove('hidden');
+                }, 30000);
+            }
+        }
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(function(err) {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
